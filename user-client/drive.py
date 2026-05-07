@@ -105,7 +105,7 @@ def _make_root_claude_md(server_map: dict) -> str:
     lines = [
         "# McClaude — Minecraft Server Network",
         "",
-        "This drive contains multiple Minecraft servers. Each subdirectory is a separate server.",
+        "You are reading `M:\\CLAUDE.md` (the root of the McClaude virtual drive). This drive contains multiple Minecraft servers, one per subdirectory.",
         "",
         "## File operations",
         "",
@@ -123,9 +123,9 @@ def _make_root_claude_md(server_map: dict) -> str:
         "",
         "## Servers",
         "",
-        "Each server directory contains its own CLAUDE.md with server-specific info,",
-        "including the server ID, available plugins, and any plugin-specific tools.",
-        "Always read the server's CLAUDE.md when working in a server directory.",
+        "Each server directory contains its own CLAUDE.md at `M:\\<server-name>\\CLAUDE.md`",
+        "with server-specific info: server ID, installed plugins, plugin-specific tools, and",
+        "workflow notes. Always read that file when working in a server directory.",
         "",
     ]
     if not server_map:
@@ -248,7 +248,7 @@ def _make_claude_md(server_name: str, server_id: str, api: "McclaudeAPI | None" 
 
     return f"""# Minecraft Server: {server_name}
 
-You are working on a live Minecraft server. The files in this directory are the actual server files, mounted via McClaude.
+You are reading `M:\\{server_name}\\CLAUDE.md`. The files in this directory (`M:\\{server_name}\\`) are the actual files of a live Minecraft server, mounted via McClaude.
 
 ## File operations
 
