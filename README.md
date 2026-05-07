@@ -51,7 +51,7 @@ npm run build
 npm start          # listens on :3000 by default
 ```
 
-Or deploy to Pterodactyl with a generic Node.js egg: upload the folder, run `npm install`, and start with `npm start`.
+Or deploy to a Node.js host (Pterodactyl, Render, Heroku, etc.). The repo root has a thin `package.json` whose `postinstall` builds `intermediate-server/` and whose `start` runs it. So `git clone` + `npm install` + `npm start` is enough. On Pterodactyl with a generic Node.js egg, enable auto-update on the egg and it'll re-pull + rebuild on every restart.
 
 ### 2. Build and install the Minecraft plugin
 

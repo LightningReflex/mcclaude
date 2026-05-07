@@ -1,0 +1,11 @@
+{
+  "name": "mcclaude",
+  "version": "1.0.0",
+  "description": "Root package for deploying the McClaude intermediate server (e.g. Pterodactyl). Runs npm install + build inside intermediate-server/ on install, and starts it on `npm start`.",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd intermediate-server && npm install && npm run build",
+    "start": "node intermediate-server/dist/index.js"
+  },
+  "license": "MIT"
+}
