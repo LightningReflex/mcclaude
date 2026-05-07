@@ -1,0 +1,27 @@
+node_modules/
+build/
+test-server/
+__pycache__/
+.gradle/
+gradle/
+dist/
+bin/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.class
+*.jar
+mcclaude.egg-info/

@@ -1,0 +1,14 @@
+name: McClaude
+version: '1.0.0'
+main: com.mcclaude.plugin.McClaudePlugin
+api-version: '1.21'
+description: Bridge between Claude Code and your Minecraft server
+commands:
+  mcclaude:
+    description: McClaude plugin commands
+    usage: /mcclaude <reload|status>
+    permission: mcclaude.admin
+permissions:
+  mcclaude.admin:
+    description: Admin access to McClaude
+    default: op
