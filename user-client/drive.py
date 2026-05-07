@@ -112,6 +112,8 @@ def _make_root_claude_md(server_map: dict) -> str:
         "Use your normal Read, Write, Edit, Glob, and Grep tools for ALL file operations.",
         "Do NOT use MCP tools for file operations — the files are mounted locally.",
         "",
+        "**Copying files to this drive**: Use PowerShell `Copy-Item` (or `Move-Item`), not bash `cp`. This drive is mounted via the Windows WebDAV redirector, which rejects the POSIX metadata syscalls MSYS `cp` makes after writing — the copy fails with `Permission denied` even though the upload would otherwise succeed. PowerShell, `xcopy`, and File Explorer use native shell-copy semantics and work fine.",
+        "",
         "## Server interaction (MCP tools)",
         "",
         "Use mcclaude MCP tools ONLY for live server interaction (console, commands, status):",
@@ -254,6 +256,8 @@ You are reading `M:\\{server_name}\\CLAUDE.md`. The files in this directory (`M:
 
 Use your normal Read, Write, Edit, Glob, and Grep tools for ALL file operations. The files here are real and writable. Do NOT use MCP tools for file operations.
 
+**Copying files to this drive**: Use PowerShell `Copy-Item` (or `Move-Item`), not bash `cp`. This drive is mounted via the Windows WebDAV redirector, which rejects the POSIX metadata syscalls MSYS `cp` makes after writing — the copy fails with `Permission denied` even though the upload would otherwise succeed. PowerShell, `xcopy`, and File Explorer use native shell-copy semantics and work fine.
+
 ## Server interaction (MCP tools)
 
 Use the mcclaude MCP tools ONLY for live server interaction that is not available through the filesystem:
@@ -313,6 +317,7 @@ class McclaudeServerDir(DAVCollection):
         """Handle directory deletion via DELETE."""
         self.api.delete_file(self.server_id, self.remote_path)
         self.cache.invalidate(f"list:{self.server_id}:")
+        return True
 
     def handle_move(self, dest_path):
         """Handle directory rename/move via MOVE."""
@@ -322,6 +327,7 @@ class McclaudeServerDir(DAVCollection):
         dest_remote = "/".join(parts[1:])
         self.api.rename_file(self.server_id, self.remote_path, dest_remote)
         self.cache.invalidate(f"list:{self.server_id}:")
+        return True
 
     def handle_copy(self, dest_path, depth_infinity):
         """Handle directory copy — not supported (would need recursive copy)."""
@@ -511,6 +517,7 @@ class McclaudeFile(DAVNonCollection):
         data = self.api.read_file_bytes(self.server_id, self.remote_path)
         self.api.write_file_encrypted(self.server_id, dest_remote, data)
         self.cache.invalidate(f"list:{self.server_id}:")
+        return True
 
     def handle_move(self, dest_path):
         parts = dest_path.strip("/").split("/")
@@ -520,17 +527,13 @@ class McclaudeFile(DAVNonCollection):
         self.api.rename_file(self.server_id, self.remote_path, dest_remote)
         self.cache.invalidate(f"list:{self.server_id}:")
         self.cache.invalidate(f"read:{self.server_id}:{self.remote_path}")
+        return True
 
     def handle_delete(self):
-        perms = self.server_info.get("permissions", "read")
-        role = self.server_info.get("role", "")
-        if perms not in ("readwrite", "full") and role != "owner":
-            raise Exception("No write permission")
-        try:
-            self.api.delete_file(self.server_id, self.remote_path)
-            self.cache.invalidate(f"list:{self.server_id}:")
-        except Exception as e:
-            raise Exception(f"Delete failed: {e}")
+        self.api.delete_file(self.server_id, self.remote_path)
+        self.cache.invalidate(f"list:{self.server_id}:")
+        self.cache.invalidate(f"read:{self.server_id}:{self.remote_path}")
+        return True
 
     def support_content_length(self):
         return True
