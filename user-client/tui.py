@@ -54,7 +54,9 @@ def install_mcp_server(token: str, api_url: str) -> str:
         js_path.write_bytes(source.read_bytes())
     elif hasattr(install_mcp_server, "_embedded_js"):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        js_path.write_text(install_mcp_server._embedded_js, encoding="utf-8")
+        # write_bytes (not write_text) so Windows doesn't translate \n -> \r\n,
+        # which would make the hash check think we're always out of date.
+        js_path.write_bytes(install_mcp_server._embedded_js.encode("utf-8"))
     elif not js_path.exists():
         return "MCP server JS not found"
 
