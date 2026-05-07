@@ -22,6 +22,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -47,8 +49,8 @@ public class WebSocketClient extends WebSocketListener {
 
     /** Tracks the request ID when we're expecting a binary frame with encrypted RPC payload */
     private String pendingRpcRequestId;
+    private final Set<String> activeRpcIds = ConcurrentHashMap.newKeySet();
     /** Tracks the request ID for an in-flight RPC so sendResult/sendError encrypt the response */
-    private String pendingRpcId;
 
     public WebSocketClient(McClaudePlugin plugin) {
         this.plugin = plugin;
@@ -189,8 +191,8 @@ public class WebSocketClient extends WebSocketListener {
                     return;
                 }
 
-                // Set RPC mode so sendResult/sendError encrypt the response
-                pendingRpcId = rpcId;
+                // Track this RPC so sendResult/sendError encrypt the response
+                activeRpcIds.add(rpcId);
 
                 plugin.getLogger().fine("Handling RPC message type: " + type + " (id: " + rpcId + ")");
                 dispatchRequest(rpcId, type, data);
@@ -313,9 +315,8 @@ public class WebSocketClient extends WebSocketListener {
     }
 
     public void sendResult(String id, JsonObject result) {
-        if (pendingRpcId != null && pendingRpcId.equals(id)) {
+        if (activeRpcIds.remove(id)) {
             // RPC mode: encrypt entire response and send as stream
-            pendingRpcId = null;
             JsonObject response = new JsonObject();
             response.add("result", result);
             response.add("error", null);
@@ -344,9 +345,8 @@ public class WebSocketClient extends WebSocketListener {
     }
 
     public void sendError(String id, String error) {
-        if (pendingRpcId != null && pendingRpcId.equals(id)) {
+        if (activeRpcIds.remove(id)) {
             // RPC mode: encrypt error response and send as stream
-            pendingRpcId = null;
             JsonObject response = new JsonObject();
             response.add("result", null);
             response.addProperty("error", error);
@@ -379,7 +379,7 @@ public class WebSocketClient extends WebSocketListener {
      * Used by handlers (e.g., FileHandler) to adjust their behavior.
      */
     public boolean isRpcMode(String id) {
-        return pendingRpcId != null && pendingRpcId.equals(id);
+        return activeRpcIds.contains(id);
     }
 
     private void scheduleReconnect() {

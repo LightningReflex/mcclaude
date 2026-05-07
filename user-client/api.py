@@ -42,6 +42,13 @@ class McclaudeAPI:
             "X-Token-Hash": self.token_hash,
             "Content-Type": "application/json",
         })
+        # Larger pool so VS Code's parallel file scanning doesn't queue up
+        from requests.adapters import HTTPAdapter
+        adapter = HTTPAdapter(pool_connections=32, pool_maxsize=64, max_retries=2)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        # Per-request timeout (connect, read) seconds — prevents indefinite hangs
+        self.timeout = (10, 30)
 
     # ── helpers ──────────────────────────────────────────────────────
 
