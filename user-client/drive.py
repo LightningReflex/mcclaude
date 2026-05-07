@@ -459,6 +459,11 @@ class McclaudeFile(DAVNonCollection):
         self._modified = modified / 1000.0 if modified > 1e10 else modified  # ms -> seconds
 
     def get_content_length(self):
+        # Prefer cached actual size if we've already read the file —
+        # the listing's _size can go stale if the file changed
+        cached = self.cache.get(f"read:{self.server_id}:{self.remote_path}")
+        if isinstance(cached, bytes):
+            return len(cached)
         return self._size
 
     def get_last_modified(self):
@@ -476,14 +481,15 @@ class McclaudeFile(DAVNonCollection):
     def get_content(self):
         cache_key = f"read:{self.server_id}:{self.remote_path}"
         cached = self.cache.get(cache_key)
-        if cached is not None:
+        if isinstance(cached, bytes):
             return BytesIO(cached)
-        try:
-            data = self.api.read_file_bytes(self.server_id, self.remote_path)
-            self.cache.put(cache_key, data)
-            return BytesIO(data)
-        except Exception:
-            return BytesIO(b"")
+        # Don't swallow errors silently — let wsgidav return a proper HTTP error
+        # instead of giving Claude an empty file
+        data = self.api.read_file_bytes(self.server_id, self.remote_path)
+        if not isinstance(data, bytes):
+            data = bytes(data) if data else b""
+        self.cache.put(cache_key, data)
+        return BytesIO(data)
 
     def begin_write(self, content_type=None):
         # wsgidav writes to this stream, then calls end_write
