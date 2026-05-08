@@ -154,10 +154,12 @@ def _tools_list(server_id: str, plugin_names: set) -> str:
     tools = [
         f'- `mcclaude list_servers` — get server IDs (this server\'s ID is `{server_id}`)',
         f'- `mcclaude read_console` — read live console output (server={server_id})',
-        f'- `mcclaude send_command` — execute server commands like tps, say, give (server={server_id})',
+        f'- `mcclaude send_command` — execute server commands like tps, say, give as console (server={server_id})',
+        f'- `mcclaude send_command_as` — execute a command AS a specific online player (server={server_id}, player=name, command=...). Use when sender identity matters (permissions, `sender instanceof Player`, etc.). Only console output is captured — messages sent directly to the player\'s chat are not visible. Subject to the Player safety rules above.',
         f'- `mcclaude get_server_info` — get live TPS, player count, version (server={server_id})',
         f'- `mcclaude list_plugins` — list all installed plugins (server={server_id})',
-        f'- `mcclaude get_player_info` — get player details: health, location, gamemode, armor, effects (server={server_id}, player=name, inventory=true/false)',
+        f'- `mcclaude get_player_info` — get player details: health, location, gamemode, armor, effects (server={server_id}, player=name, inventory=true/false, styled=true/false). Pass `styled=true` to also get `name_styled`/`lore_styled` with `&`-codes.',
+        f'- `mcclaude get_open_inventory` — read the GUI/inventory a player currently has open (slots, items, title). Use to verify custom GUIs you built without screenshots (server={server_id}, player=name, styled=true/false). Pass `styled=true` to get `name_styled`/`lore_styled`/`title_styled` with `&`-codes — useful when a GUI uses color meaningfully (red=locked, green=available).',
     ]
     if "Skript" in plugin_names:
         tools.append(f'- `mcclaude skript_eval` — execute a single Skript effect in real-time (server={server_id}, code="...")')
@@ -190,7 +192,8 @@ def _make_claude_md(server_name: str, server_id: str, api: "McclaudeAPI | None" 
 
     if "Skript" in plugin_names:
         note_lines.append("- **Skript** is installed — scripts in `plugins/Skript/scripts/` (`.sk` files). After editing, reload only the changed script with `mcclaude send_command` using `sk reload <script>`. Avoid `sk reload all` — it reloads every script unnecessarily and can cause lag and instability. Always check console output after reloading to catch errors.")
-        note_lines.append("  - `mcclaude skript_eval` — execute a single Skript effect in real-time (e.g. `send \"hello\"`, `set {test} to 5`). One effect per call, no multiline. Output from `send` is captured directly. Local variables (`{_var}`) don't persist between calls — use global variables (`{var}`) instead.")
+        note_lines.append("  - `mcclaude skript_eval` — execute a single Skript effect in real-time (e.g. `send \"hello\"`, `set {test} to 5`). One effect per call, no multiline. Output from `send`/`broadcast` *issued inside the eval* is captured directly. Local variables (`{_var}`) don't persist between calls — use global variables (`{var}`) instead.")
+        note_lines.append("  - **Don't use `make player(x) execute command \"...\"` for testing commands.** That runs the command in the player's context, so any chat output goes to the player's client, not the eval — `output` comes back empty. Use `mcclaude send_command_as` instead, which captures console output and is subject to the Player safety rules.")
         note_lines.append("  - `mcclaude search_skript_syntax` — search the SkriptHub syntax database for effects, expressions, conditions, and events. Use this to find correct syntax.")
 
     if "skript-reflect" in plugin_names:

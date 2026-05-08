@@ -7,9 +7,11 @@ import {
   listServers,
   readConsole,
   sendCommand,
+  sendCommandAs,
   getServerInfo,
   listPlugins,
   getPlayerInfo,
+  getOpenInventory,
   searchSkriptSyntax,
   skriptEval,
 } from "./api.js";
@@ -85,6 +87,19 @@ server.tool(
 );
 
 server.tool(
+  "send_command_as",
+  "Execute a command AS a specific online player (the player is the command sender, not the console). Use this when a command's behavior depends on the sender being a player — e.g. plugin commands that check sender.hasPermission(), `sender instanceof Player`, or that act on the sender's location/inventory. This replaces Skript's `make player(x) execute command` with proper output capture. " +
+    "IMPORTANT: only console output is captured. Messages the command sends directly to the player's chat (player.sendMessage / message expressions in Skript) are NOT visible to McClaude — output may come back empty even when the command worked. Per CLAUDE.md, do not run active interactions on real players unless the user has explicitly authorized that player.",
+  {
+    server: z.string().describe("Server ID (get this from list_servers)"),
+    player: z.string().describe("Exact name of an ONLINE player to run the command as. Errors if the player is offline."),
+    command: z.string().describe("Command to execute (without leading /)"),
+  },
+  async ({ server: serverId, player, command }) =>
+    handleApi(() => sendCommandAs(serverId, player, command))
+);
+
+server.tool(
   "get_server_info",
   "Get live status of a Minecraft server: version, TPS, player count, MOTD. This queries the running server in real-time.",
   {
@@ -111,9 +126,23 @@ server.tool(
     server: z.string().describe("Server ID (get this from list_servers)"),
     player: z.string().optional().describe("Player name (omit for all online players)"),
     inventory: z.boolean().optional().describe("Include full inventory contents (default false, can be large)"),
+    styled: z.boolean().optional().describe("If true, also include `name_styled` and `lore_styled` fields on items containing &-codes (e.g. `&aDiamond`). Default false (plain text only)."),
   },
-  async ({ server: serverId, player, inventory }) =>
-    handleApi(() => getPlayerInfo(serverId, player, inventory))
+  async ({ server: serverId, player, inventory, styled }) =>
+    handleApi(() => getPlayerInfo(serverId, player, inventory, styled))
+);
+
+server.tool(
+  "get_open_inventory",
+  "Read the inventory/GUI a player currently has open (chest, plugin GUI, anvil, etc.). Returns the type, title, size, and the contents of every non-empty slot with material, amount, display name, lore, and enchantments. Use this to verify GUI layouts you've built (e.g. /buy menus, custom shop UIs) without screenshots, or to see what slot a player has selected. " +
+    "If the player has no GUI open (just their own inventory via E), `open` is `false` and `type` is `crafting`. For the player's own inventory contents, use `get_player_info` with `inventory: true` instead. Read-only, safe under Player safety rules.",
+  {
+    server: z.string().describe("Server ID (get this from list_servers)"),
+    player: z.string().describe("Exact name of an ONLINE player. Errors if the player is offline."),
+    styled: z.boolean().optional().describe("If true, also include `name_styled`, `lore_styled`, and `title_styled` fields with &-codes preserved (e.g. `&aDiamond`). Useful for verifying color-meaningful GUIs (red=locked, green=available). Default false."),
+  },
+  async ({ server: serverId, player, styled }) =>
+    handleApi(() => getOpenInventory(serverId, player, styled))
 );
 
 server.tool(

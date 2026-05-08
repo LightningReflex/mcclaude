@@ -116,6 +116,14 @@ export async function sendCommand(
   return rpc(server, { type: "command", data: { command } });
 }
 
+export async function sendCommandAs(
+  server: string,
+  player: string,
+  command: string
+): Promise<ApiResponse> {
+  return rpc(server, { type: "command_as_player", data: { player, command } });
+}
+
 export async function getServerInfo(server: string): Promise<ApiResponse> {
   return rpc(server, { type: "server_info", data: {} });
 }
@@ -124,11 +132,18 @@ export async function listPlugins(server: string): Promise<ApiResponse> {
   return rpc(server, { type: "plugins_list", data: {} });
 }
 
-export async function getPlayerInfo(server: string, player?: string, inventory?: boolean): Promise<ApiResponse> {
+export async function getPlayerInfo(server: string, player?: string, inventory?: boolean, styled?: boolean): Promise<ApiResponse> {
   const data: Record<string, unknown> = {};
   if (player) data.player = player;
   if (inventory) data.inventory = true;
+  if (styled) data.styled = true;
   return rpc(server, { type: "player_info", data });
+}
+
+export async function getOpenInventory(server: string, player: string, styled?: boolean): Promise<ApiResponse> {
+  const data: Record<string, unknown> = { player };
+  if (styled) data.styled = true;
+  return rpc(server, { type: "open_inventory", data });
 }
 
 export async function skriptEval(server: string, code: string): Promise<ApiResponse> {

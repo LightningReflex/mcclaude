@@ -8,9 +8,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.plugin.Plugin;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 public class ServerInfoHandler {
@@ -99,6 +103,7 @@ public class ServerInfoHandler {
     public void handlePlayerInfo(String id, JsonObject data, WebSocketClient client) {
         String playerName = data.has("player") ? data.get("player").getAsString() : null;
         boolean includeInventory = data.has("inventory") && data.get("inventory").getAsBoolean();
+        boolean styled = data.has("styled") && data.get("styled").getAsBoolean();
 
         Bukkit.getScheduler().callSyncMethod(plugin, () -> {
             try {
@@ -106,7 +111,7 @@ public class ServerInfoHandler {
                     JsonObject result = new JsonObject();
                     JsonArray players = new JsonArray();
                     for (Player p : Bukkit.getOnlinePlayers()) {
-                        players.add(serializePlayer(p, includeInventory));
+                        players.add(serializePlayer(p, includeInventory, styled));
                     }
                     result.add("players", players);
                     result.addProperty("count", players.size());
@@ -116,7 +121,7 @@ public class ServerInfoHandler {
                     if (p == null) {
                         client.sendError(id, "Player not found: " + playerName);
                     } else {
-                        client.sendResult(id, serializePlayer(p, includeInventory));
+                        client.sendResult(id, serializePlayer(p, includeInventory, styled));
                     }
                 }
             } catch (Exception e) {
@@ -126,17 +131,86 @@ public class ServerInfoHandler {
         });
     }
 
+    public void handleOpenInventory(String id, JsonObject data, WebSocketClient client) {
+        String playerName = data.has("player") ? data.get("player").getAsString() : null;
+        boolean styled = data.has("styled") && data.get("styled").getAsBoolean();
+
+        if (playerName == null || playerName.isEmpty()) {
+            client.sendError(id, "No player provided");
+            return;
+        }
+
+        Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+            try {
+                Player p = Bukkit.getPlayerExact(playerName);
+                if (p == null) {
+                    client.sendError(id, "Player not online: " + playerName);
+                    return null;
+                }
+
+                InventoryView view = p.getOpenInventory();
+                Inventory top = view.getTopInventory();
+                InventoryType type = top.getType();
+                // CRAFTING = the player's default 2x2 crafting grid (no real GUI open)
+                boolean hasGuiOpen = type != InventoryType.CRAFTING;
+
+                JsonObject result = new JsonObject();
+                result.addProperty("player", p.getName());
+                result.addProperty("open", hasGuiOpen);
+                result.addProperty("type", type.name().toLowerCase());
+                result.addProperty("size", top.getSize());
+
+                try {
+                    var titleComp = view.title();
+                    result.addProperty("title",
+                        PlainTextComponentSerializer.plainText().serialize(titleComp));
+                    if (styled) {
+                        result.addProperty("title_styled",
+                            LegacyComponentSerializer.legacyAmpersand().serialize(titleComp));
+                    }
+                } catch (Exception e) {
+                    result.addProperty("title", "");
+                }
+
+                JsonObject cursor = serializeItem(p.getItemOnCursor(), styled);
+                if (cursor != null) result.add("cursor", cursor);
+
+                JsonArray slots = new JsonArray();
+                for (int i = 0; i < top.getSize(); i++) {
+                    JsonObject slot = serializeItem(top.getItem(i), styled);
+                    if (slot != null) {
+                        slot.addProperty("slot", i);
+                        slots.add(slot);
+                    }
+                }
+                result.add("slots", slots);
+
+                client.sendResult(id, result);
+            } catch (Exception e) {
+                client.sendError(id, "Error reading open inventory: " + e.getMessage());
+            }
+            return null;
+        });
+    }
+
     private JsonObject serializeItem(ItemStack item) {
+        return serializeItem(item, false);
+    }
+
+    private JsonObject serializeItem(ItemStack item, boolean styled) {
         if (item == null || item.getType().isAir()) return null;
         JsonObject obj = new JsonObject();
         obj.addProperty("type", item.getType().name().toLowerCase());
         obj.addProperty("amount", item.getAmount());
         if (item.hasItemMeta()) {
             var meta = item.getItemMeta();
-            if (meta.hasDisplayName()) {
-                obj.addProperty("name", meta.displayName() != null ?
-                    PlainTextComponentSerializer.plainText()
-                        .serialize(meta.displayName()) : null);
+            if (meta.hasDisplayName() && meta.displayName() != null) {
+                var nameComp = meta.displayName();
+                obj.addProperty("name", PlainTextComponentSerializer.plainText().serialize(nameComp));
+                if (styled) {
+                    obj.addProperty("name_styled",
+                        LegacyComponentSerializer.legacyAmpersand().serialize(nameComp));
+                }
             }
             if (meta.hasEnchants()) {
                 JsonObject enchants = new JsonObject();
@@ -147,18 +221,22 @@ public class ServerInfoHandler {
             }
             if (meta.hasLore()) {
                 JsonArray lore = new JsonArray();
+                JsonArray loreStyled = styled ? new JsonArray() : null;
                 for (var line : meta.lore()) {
-                    lore.add(PlainTextComponentSerializer.plainText()
-                        .serialize(line));
+                    lore.add(PlainTextComponentSerializer.plainText().serialize(line));
+                    if (loreStyled != null) {
+                        loreStyled.add(LegacyComponentSerializer.legacyAmpersand().serialize(line));
+                    }
                 }
                 obj.add("lore", lore);
+                if (loreStyled != null) obj.add("lore_styled", loreStyled);
             }
             obj.addProperty("durability", ((Damageable) meta).getDamage());
         }
         return obj;
     }
 
-    private JsonObject serializePlayer(Player p, boolean includeInventory) {
+    private JsonObject serializePlayer(Player p, boolean includeInventory, boolean styled) {
         JsonObject obj = new JsonObject();
         obj.addProperty("name", p.getName());
         obj.addProperty("uuid", p.getUniqueId().toString());
@@ -188,21 +266,21 @@ public class ServerInfoHandler {
         obj.add("location", location);
 
         // Held items
-        JsonObject mainHand = serializeItem(p.getInventory().getItemInMainHand());
-        JsonObject offHand = serializeItem(p.getInventory().getItemInOffHand());
+        JsonObject mainHand = serializeItem(p.getInventory().getItemInMainHand(), styled);
+        JsonObject offHand = serializeItem(p.getInventory().getItemInOffHand(), styled);
         if (mainHand != null) obj.add("mainHand", mainHand);
         if (offHand != null) obj.add("offHand", offHand);
 
         // Cursor item (item on cursor in open inventory)
-        JsonObject cursor = serializeItem(p.getItemOnCursor());
+        JsonObject cursor = serializeItem(p.getItemOnCursor(), styled);
         if (cursor != null) obj.add("cursor", cursor);
 
         // Armor
         JsonObject armor = new JsonObject();
-        JsonObject helmet = serializeItem(p.getInventory().getHelmet());
-        JsonObject chest = serializeItem(p.getInventory().getChestplate());
-        JsonObject legs = serializeItem(p.getInventory().getLeggings());
-        JsonObject boots = serializeItem(p.getInventory().getBoots());
+        JsonObject helmet = serializeItem(p.getInventory().getHelmet(), styled);
+        JsonObject chest = serializeItem(p.getInventory().getChestplate(), styled);
+        JsonObject legs = serializeItem(p.getInventory().getLeggings(), styled);
+        JsonObject boots = serializeItem(p.getInventory().getBoots(), styled);
         if (helmet != null) armor.add("helmet", helmet);
         if (chest != null) armor.add("chestplate", chest);
         if (legs != null) armor.add("leggings", legs);
@@ -224,7 +302,7 @@ public class ServerInfoHandler {
         if (includeInventory) {
             JsonArray inventory = new JsonArray();
             for (int i = 0; i < p.getInventory().getSize(); i++) {
-                JsonObject slot = serializeItem(p.getInventory().getItem(i));
+                JsonObject slot = serializeItem(p.getInventory().getItem(i), styled);
                 if (slot != null) {
                     slot.addProperty("slot", i);
                     inventory.add(slot);

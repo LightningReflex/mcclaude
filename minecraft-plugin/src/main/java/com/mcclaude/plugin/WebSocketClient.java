@@ -278,6 +278,9 @@ public class WebSocketClient extends WebSocketListener {
             case "command":
                 commandHandler.handleCommand(id, data, this);
                 break;
+            case "command_as_player":
+                commandHandler.handleCommandAsPlayer(id, data, this);
+                break;
             case "file_list":
                 fileHandler.handleFileList(id, data, this);
                 break;
@@ -304,6 +307,9 @@ public class WebSocketClient extends WebSocketListener {
                 break;
             case "player_info":
                 serverInfoHandler.handlePlayerInfo(id, data, this);
+                break;
+            case "open_inventory":
+                serverInfoHandler.handleOpenInventory(id, data, this);
                 break;
             case "skript_eval":
                 skriptBridge.handleSkriptEval(id, data, this);
