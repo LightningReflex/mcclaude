@@ -16,7 +16,7 @@ McClaude bridges Claude Code and a running Minecraft server so Claude can read t
 | `list_plugins` | Installed plugins with versions |
 | `get_player_info` | Player details: health, location, gamemode, armor, effects (optional full inventory; optional `styled` for `&`-coded names/lore) |
 | `get_open_inventory` | Read the GUI/inventory a player currently has open (slots, items, title) — useful for verifying custom GUIs without screenshots |
-| `skript_eval` | Run a single Skript effect, captures `send`/`broadcast` output directly (Skript only) |
+| `skript_eval` | Run Skript effect(s) — single (`code`) or batch (`codes` array, local variables persist across the batch). Validates no unquoted newlines before sending. Captures `send`/`broadcast` output directly (Skript only) |
 | `search_skript_syntax` | Query SkriptHub for Skript syntax (no server needed) |
 
 In addition to these tools, the user client mounts the server's filesystem as a Windows drive, so Claude reads and edits plugin files (`.sk`, `.yml`, etc.) using its normal Read/Write tools. Each server's mounted root has a virtual `CLAUDE.md` that describes the installed plugins (Skript, skript-reflect, skript-gui, Citizens, PlaceholderAPI, TAB, FancyHolograms, LuckPerms, Vault, etc.) and how to work with them.

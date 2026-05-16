@@ -18,6 +18,18 @@ import {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+function hasUnquotedNewlines(code: string): boolean {
+  let inQuotes = false;
+  let escaped = false;
+  for (const ch of code) {
+    if (escaped) { escaped = false; continue; }
+    if (ch === "\\") { escaped = true; continue; }
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === "\n" && !inQuotes) { return true; }
+  }
+  return false;
+}
+
 function textResult(data: unknown) {
   const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
   return { content: [{ type: "text" as const, text }] };
@@ -147,13 +159,32 @@ server.tool(
 
 server.tool(
   "skript_eval",
-  "Execute a Skript effect/expression on the server in real-time. Only works if Skript is installed. Use for testing Skript code, debugging, or running one-off effects.",
+  "Execute Skript effect(s) on the server in real-time. Only works if Skript is installed. Use for testing Skript code, debugging, or running one-off effects. " +
+    "Pass `code` for a single effect, or `codes` for a batch of effects executed sequentially (local variables and imports persist within the batch). Each code string must be a single effect — no newlines outside of quoted strings.",
   {
     server: z.string().describe("Server ID (get this from list_servers)"),
-    code: z.string().describe("Skript code to execute (e.g. 'send \"hello\" to all players', 'set {test} to 5')"),
+    code: z.string().optional().describe("Single Skript effect to execute (e.g. 'send \"hello\" to all players')"),
+    codes: z.array(z.string()).optional().describe("Batch of Skript effects to execute sequentially. Local variables persist across the batch (e.g. ['set {_x} to 5', 'send \"%{_x}%\"'])"),
   },
-  async ({ server: serverId, code }) =>
-    handleApi(() => skriptEval(serverId, code))
+  async ({ server: serverId, code, codes }) => {
+    if (!code && (!codes || codes.length === 0)) {
+      return errorResult("Provide either `code` (single) or `codes` (batch)");
+    }
+    const toValidate = codes ?? [code!];
+    for (let i = 0; i < toValidate.length; i++) {
+      if (hasUnquotedNewlines(toValidate[i])) {
+        const label = codes ? `codes[${i}]` : "code";
+        return errorResult(
+          `${label} contains a newline outside of quotes. Each effect must be a single line. ` +
+          `Split into separate strings: ${JSON.stringify(toValidate[i].split("\n"))}`
+        );
+      }
+    }
+    if (codes) {
+      return handleApi(() => skriptEval(serverId, undefined, codes));
+    }
+    return handleApi(() => skriptEval(serverId, code!));
+  }
 );
 
 server.tool(

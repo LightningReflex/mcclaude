@@ -146,8 +146,11 @@ export async function getOpenInventory(server: string, player: string, styled?: 
   return rpc(server, { type: "open_inventory", data });
 }
 
-export async function skriptEval(server: string, code: string): Promise<ApiResponse> {
-  return rpc(server, { type: "skript_eval", data: { code } });
+export async function skriptEval(server: string, code?: string, codes?: string[]): Promise<ApiResponse> {
+  const data: Record<string, unknown> = {};
+  if (code) data.code = code;
+  if (codes) data.codes = codes;
+  return rpc(server, { type: "skript_eval", data });
 }
 
 // ── SkriptHub syntax API (local, no MC server needed) ──────────────

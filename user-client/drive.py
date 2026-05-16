@@ -162,7 +162,7 @@ def _tools_list(server_id: str, plugin_names: set) -> str:
         f'- `mcclaude get_open_inventory` — read the GUI/inventory a player currently has open (slots, items, title). Use to verify custom GUIs you built without screenshots (server={server_id}, player=name, styled=true/false). Pass `styled=true` to get `name_styled`/`lore_styled`/`title_styled` with `&`-codes — useful when a GUI uses color meaningfully (red=locked, green=available).',
     ]
     if "Skript" in plugin_names:
-        tools.append(f'- `mcclaude skript_eval` — execute a single Skript effect in real-time (server={server_id}, code="...")')
+        tools.append(f'- `mcclaude skript_eval` — execute Skript effect(s) in real-time. Single: code="...", batch: codes=["...", "..."]. Local vars persist within a batch (server={server_id})')
         tools.append('- `mcclaude search_skript_syntax` — search SkriptHub for Skript syntax (no server needed)')
     return "\n".join(tools)
 
@@ -192,7 +192,7 @@ def _make_claude_md(server_name: str, server_id: str, api: "McclaudeAPI | None" 
 
     if "Skript" in plugin_names:
         note_lines.append("- **Skript** is installed — scripts in `plugins/Skript/scripts/` (`.sk` files). After editing, reload only the changed script with `mcclaude send_command` using `sk reload <script>`. Avoid `sk reload all` — it reloads every script unnecessarily and can cause lag and instability. Always check console output after reloading to catch errors.")
-        note_lines.append("  - `mcclaude skript_eval` — execute a single Skript effect in real-time (e.g. `send \"hello\"`, `set {test} to 5`). One effect per call, no multiline. Output from `send`/`broadcast` *issued inside the eval* is captured directly. Local variables (`{_var}`) don't persist between calls — use global variables (`{var}`) instead.")
+        note_lines.append("  - `mcclaude skript_eval` — execute Skript effect(s) in real-time. Pass `code` for a single effect or `codes` (string array) for a batch. Each string must be one effect — no newlines outside quotes (validated before sending). Output from `send`/`broadcast` *issued inside the eval* is captured directly. In batch mode, local variables (`{_var}`) and imports persist across the batch. In single mode, local vars don't persist between separate calls — use global variables (`{var}`) instead.")
         note_lines.append("  - **Don't use `make player(x) execute command \"...\"` for testing commands.** That runs the command in the player's context, so any chat output goes to the player's client, not the eval — `output` comes back empty. Use `mcclaude send_command_as` instead, which captures console output and is subject to the Player safety rules.")
         note_lines.append("  - `mcclaude search_skript_syntax` — search the SkriptHub syntax database for effects, expressions, conditions, and events. Use this to find correct syntax.")
 

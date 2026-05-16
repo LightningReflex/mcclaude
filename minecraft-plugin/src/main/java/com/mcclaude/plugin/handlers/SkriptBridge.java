@@ -120,14 +120,34 @@ public class SkriptBridge {
     }
 
     public void handleSkriptEval(String id, JsonObject data, WebSocketClient client) {
-        String code = data.has("code") ? data.get("code").getAsString() : null;
-        if (code == null || code.isEmpty()) {
-            client.sendError(id, "No code provided");
+        if (!skriptAvailable) {
+            client.sendError(id, "Skript is not installed on this server");
             return;
         }
 
-        if (!skriptAvailable) {
-            client.sendError(id, "Skript is not installed on this server");
+        // Batch mode: codes array
+        if (data.has("codes") && data.get("codes").isJsonArray()) {
+            JsonArray codesArr = data.getAsJsonArray("codes");
+            List<String> codes = new ArrayList<>();
+            for (int i = 0; i < codesArr.size(); i++) {
+                codes.add(codesArr.get(i).getAsString());
+            }
+            if (codes.isEmpty()) {
+                client.sendError(id, "Empty codes array");
+                return;
+            }
+            if (reflectionAvailable) {
+                evalBatchViaReflection(id, codes, client);
+            } else {
+                evalBatchViaDispatch(id, codes, client);
+            }
+            return;
+        }
+
+        // Single mode: code string
+        String code = data.has("code") ? data.get("code").getAsString() : null;
+        if (code == null || code.isEmpty()) {
+            client.sendError(id, "No code provided");
             return;
         }
 
@@ -199,6 +219,99 @@ public class SkriptBridge {
         });
     }
 
+    private void evalBatchViaReflection(String id, List<String> codes, WebSocketClient client) {
+        Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+            try {
+                CaptureSender sender = new CaptureSender();
+                Object logHandler = loggerStartRetaining.invoke(null);
+
+                try {
+                    // Shared event so local variables persist across the batch
+                    Object event = effectCommandEventConstructor.newInstance(sender, codes.get(0));
+                    Object parser = parserGetInstance.invoke(null);
+                    parserSetCurrentEvent.invoke(parser, "effect command",
+                            new Class[]{effectCommandEventClass});
+
+                    JsonArray results = new JsonArray();
+
+                    for (String code : codes) {
+                        sender.clear();
+                        logHandlerClear.invoke(logHandler);
+
+                        Object effect = effectParse.invoke(null, code, (String) null);
+
+                        JsonObject entry = new JsonObject();
+                        entry.addProperty("code", code);
+
+                        if (effect != null) {
+                            logHandlerPrintLog.invoke(logHandler);
+                            triggerItemWalk.invoke(null, effect, event);
+                            entry.addProperty("success", true);
+                        } else {
+                            entry.addProperty("success", false);
+                            entry.addProperty("error", "Failed to parse: " + code);
+                        }
+
+                        JsonArray outputLines = new JsonArray();
+                        for (String line : sender.getMessages()) {
+                            outputLines.add(line);
+                        }
+                        entry.add("output", outputLines);
+                        results.add(entry);
+                    }
+
+                    parserDeleteCurrentEvent.invoke(parser);
+                    variablesRemoveLocals.invoke(null, event);
+
+                    JsonObject result = new JsonObject();
+                    result.addProperty("method", "reflection");
+                    result.addProperty("batch", true);
+                    result.add("results", results);
+                    client.sendResult(id, result);
+
+                } finally {
+                    logHandlerStop.invoke(logHandler);
+                }
+
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "Skript batch reflection eval failed, falling back", e);
+                evalBatchViaDispatch(id, codes, client);
+            }
+            return null;
+        });
+    }
+
+    private void evalBatchViaDispatch(String id, List<String> codes, WebSocketClient client) {
+        Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+            int logSizeBefore = consoleHandler.getLogSize();
+
+            for (String code : codes) {
+                try {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "sk effect " + code);
+                } catch (Exception e) {
+                    // Continue with remaining codes
+                }
+            }
+
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                List<String> newLines = consoleHandler.getLogsSince(logSizeBefore);
+                JsonObject result = new JsonObject();
+                result.addProperty("method", "dispatch");
+                result.addProperty("batch", true);
+                result.addProperty("success", true);
+
+                JsonArray outputLines = new JsonArray();
+                for (String line : newLines) {
+                    outputLines.add(line);
+                }
+                result.add("console_output", outputLines);
+                client.sendResult(id, result);
+            }, 5L);
+
+            return null;
+        });
+    }
+
     private void evalViaDispatch(String id, String code, WebSocketClient client) {
         Bukkit.getScheduler().callSyncMethod(plugin, () -> {
             int logSizeBefore = consoleHandler.getLogSize();
@@ -242,6 +355,10 @@ public class SkriptBridge {
 
         public List<String> getMessages() {
             return new ArrayList<>(messages);
+        }
+
+        public void clear() {
+            messages.clear();
         }
 
         @Override public void sendMessage(@NotNull String message) { messages.add(message); }
