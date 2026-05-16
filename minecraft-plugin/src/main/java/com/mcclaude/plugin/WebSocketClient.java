@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.mcclaude.plugin.handlers.CommandHandler;
 import com.mcclaude.plugin.handlers.ConsoleHandler;
 import com.mcclaude.plugin.handlers.FileHandler;
+import com.mcclaude.plugin.handlers.GuiDesigner;
 import com.mcclaude.plugin.handlers.ServerInfoHandler;
 import com.mcclaude.plugin.handlers.SkriptBridge;
 import okhttp3.OkHttpClient;
@@ -40,6 +41,7 @@ public class WebSocketClient extends WebSocketListener {
     private final FileHandler fileHandler;
     private final ServerInfoHandler serverInfoHandler;
     private final SkriptBridge skriptBridge;
+    private final GuiDesigner guiDesigner;
 
     private OkHttpClient httpClient;
     private WebSocket webSocket;
@@ -62,6 +64,7 @@ public class WebSocketClient extends WebSocketListener {
         this.serverInfoHandler = new ServerInfoHandler(plugin);
         this.skriptBridge = new SkriptBridge(plugin, consoleHandler);
         this.skriptBridge.init();
+        this.guiDesigner = new GuiDesigner(plugin);
         this.connected = false;
         this.intentionalDisconnect = false;
     }
@@ -104,6 +107,10 @@ public class WebSocketClient extends WebSocketListener {
 
     public boolean isConnected() {
         return connected;
+    }
+
+    public GuiDesigner getGuiDesigner() {
+        return guiDesigner;
     }
 
     public void sendMessage(JsonObject message) {
@@ -313,6 +320,18 @@ public class WebSocketClient extends WebSocketListener {
                 break;
             case "skript_eval":
                 skriptBridge.handleSkriptEval(id, data, this);
+                break;
+            case "gui_open":
+                guiDesigner.handleGuiOpen(id, data, this);
+                break;
+            case "gui_read":
+                guiDesigner.handleGuiRead(id, data, this);
+                break;
+            case "gui_set":
+                guiDesigner.handleGuiSet(id, data, this);
+                break;
+            case "gui_close":
+                guiDesigner.handleGuiClose(id, data, this);
                 break;
             default:
                 sendError(id, "Unknown message type: " + type);

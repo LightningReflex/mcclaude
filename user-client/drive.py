@@ -120,8 +120,12 @@ def _make_root_claude_md(server_map: dict) -> str:
         "",
         "- `mcclaude list_servers` — list all servers and their IDs",
         "- `mcclaude read_console` — read live console output",
-        "- `mcclaude send_command` — execute server commands (tps, say, give, etc.)",
+        "- `mcclaude send_command` — execute server commands as console",
+        "- `mcclaude send_command_as` — execute a command as a specific online player",
         "- `mcclaude get_server_info` — get live TPS, player count, version",
+        "- `mcclaude get_player_info` — player details (health, location, inventory, etc.)",
+        "- `mcclaude get_open_inventory` — read a player's currently open GUI",
+        "- `mcclaude gui_open/gui_read/gui_set/gui_close` — collaborative GUI designer with conflict detection",
         "",
         "## Player safety",
         "",
@@ -160,6 +164,10 @@ def _tools_list(server_id: str, plugin_names: set) -> str:
         f'- `mcclaude list_plugins` — list all installed plugins (server={server_id})',
         f'- `mcclaude get_player_info` — get player details: health, location, gamemode, armor, effects (server={server_id}, player=name, inventory=true/false, styled=true/false). Pass `styled=true` to also get `name_styled`/`lore_styled` with `&`-codes.',
         f'- `mcclaude get_open_inventory` — read the GUI/inventory a player currently has open (slots, items, title). Use to verify custom GUIs you built without screenshots (server={server_id}, player=name, styled=true/false). Pass `styled=true` to get `name_styled`/`lore_styled`/`title_styled` with `&`-codes — useful when a GUI uses color meaningfully (red=locked, green=available).',
+        f'- `mcclaude gui_open` — open a GUI design canvas for a player with free item movement (server={server_id}, player=name, type="chest"|"hopper"|"anvil"|"furnace"|etc., rows=1-6 for chest, title="&6My GUI", slots=[...]). Session persists when closed — player reopens with `/mcclaude gui`. Subject to Player safety rules.',
+        f'- `mcclaude gui_read` — read current state of a design GUI + record a snapshot. Like the Read tool — gui_set will detect if player modified the GUI since this read.',
+        f'- `mcclaude gui_set` — set specific slots in a design GUI (incremental — unspecified slots untouched). Like the Edit tool — returns conflict if player modified since last gui_read. Same item format as gui_read output.',
+        f'- `mcclaude gui_close` — end the design session, return final layout for conversion to code (Skript, Java, YAML, etc.).',
     ]
     if "Skript" in plugin_names:
         tools.append(f'- `mcclaude skript_eval` — execute Skript effect(s) in real-time. Single: code="...", batch: codes=["...", "..."]. Local vars persist within a batch (server={server_id})')

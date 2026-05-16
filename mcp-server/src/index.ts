@@ -12,6 +12,10 @@ import {
   listPlugins,
   getPlayerInfo,
   getOpenInventory,
+  guiOpen,
+  guiRead,
+  guiSet,
+  guiClose,
   searchSkriptSyntax,
   skriptEval,
 } from "./api.js";
@@ -156,6 +160,72 @@ server.tool(
   async ({ server: serverId, player, styled }) =>
     handleApi(() => getOpenInventory(serverId, player, styled))
 );
+
+// ── GUI Designer tools ──────────────────────────────────────────────
+
+server.tool(
+  "gui_open",
+  "Open a GUI design canvas for a player. Items are freely movable — this is a collaborative workspace, not a functional GUI. " +
+    "The player can rearrange items in-game, and you can read/modify the layout with gui_read and gui_set. " +
+    "The session persists even if the player closes the inventory (they can reopen with /mcclaude gui). " +
+    "Use gui_close to end the session and get the final layout. Subject to Player safety rules.",
+  {
+    server: z.string().describe("Server ID"),
+    player: z.string().describe("Online player to open the design GUI for"),
+    type: z.string().optional().describe("Inventory type (default 'chest'). Options: chest (rows×9 slots), hopper (5), dispenser/dropper (9), furnace/blast_furnace/smoker (3), anvil (3), brewing (5), enchanting (2), workbench (10), beacon (1), grindstone (3), smithing (3), stonecutter (2), cartography (3), loom (4)"),
+    rows: z.number().min(1).max(6).optional().describe("Number of rows for chest type (default 3). Ignored for hopper/dispenser."),
+    title: z.string().describe("GUI title with &-codes (e.g. '&6Shop Menu')"),
+    slots: z.string().optional().describe("JSON array of initial slot objects: [{slot: number, type: string, amount?: number, name?: string, name_styled?: string, lore?: string[], lore_styled?: string[], enchantments?: {name: level}}]. Same format as gui_read output."),
+  },
+  async ({ server: serverId, player, type, rows, title, slots }) => {
+    const parsedSlots = slots ? JSON.parse(slots) : undefined;
+    return handleApi(() => guiOpen(serverId, player, type, rows, title, parsedSlots));
+  }
+);
+
+server.tool(
+  "gui_read",
+  "Read the current state of a player's design GUI. Returns all non-empty slots with type, name, name_styled (&-codes), lore, lore_styled, and enchantments. " +
+    "Also records a snapshot — if the player modifies the GUI after this read, gui_set will detect the conflict and require you to re-read. " +
+    "Think of this as the Read tool for GUI design.",
+  {
+    server: z.string().describe("Server ID"),
+    player: z.string().describe("Player with an active design session"),
+  },
+  async ({ server: serverId, player }) =>
+    handleApi(() => guiRead(serverId, player))
+);
+
+server.tool(
+  "gui_set",
+  "Set specific slots in a player's design GUI (incremental — unspecified slots are untouched). " +
+    "CONFLICT DETECTION: if the player modified the GUI since your last gui_read, this returns {conflict: true} with the current state instead of applying changes. You must gui_read first to acknowledge the player's changes. " +
+    "Think of this as the Edit tool for GUI design. Set type to 'air' to clear a slot. " +
+    "Item format is the same as gui_read output — you can take items from a read and pass them back with modifications.",
+  {
+    server: z.string().describe("Server ID"),
+    player: z.string().describe("Player with an active design session"),
+    slots: z.string().describe("JSON array of slot objects to set: [{slot: number, type: string, amount?: number, name?: string, name_styled?: string, lore?: string[], lore_styled?: string[], enchantments?: {name: level}}]. Only specified slots change."),
+  },
+  async ({ server: serverId, player, slots }) => {
+    const parsedSlots = JSON.parse(slots);
+    return handleApi(() => guiSet(serverId, player, parsedSlots));
+  }
+);
+
+server.tool(
+  "gui_close",
+  "End a design session and return the final layout. Closes the GUI for the player. " +
+    "The returned layout contains all slot data — use it to write the final implementation (Skript script, Java plugin code, YAML config, etc.).",
+  {
+    server: z.string().describe("Server ID"),
+    player: z.string().describe("Player with an active design session"),
+  },
+  async ({ server: serverId, player }) =>
+    handleApi(() => guiClose(serverId, player))
+);
+
+// ── Skript tools ───────────────────────────────────────────────────
 
 server.tool(
   "skript_eval",

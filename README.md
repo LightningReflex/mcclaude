@@ -16,6 +16,10 @@ McClaude bridges Claude Code and a running Minecraft server so Claude can read t
 | `list_plugins` | Installed plugins with versions |
 | `get_player_info` | Player details: health, location, gamemode, armor, effects (optional full inventory; optional `styled` for `&`-coded names/lore) |
 | `get_open_inventory` | Read the GUI/inventory a player currently has open (slots, items, title) — useful for verifying custom GUIs without screenshots |
+| `gui_open` | Open a collaborative GUI design canvas for a player (free item movement). Supports all inventory types: chest, hopper, anvil, furnace, workbench, etc. Session persists when closed — reopen with `/mcclaude gui` |
+| `gui_read` | Read current design GUI state. Records a snapshot for conflict detection |
+| `gui_set` | Set specific slots (incremental). Detects if player modified since last read — forces re-read before overwriting |
+| `gui_close` | End design session, return final layout for conversion to code |
 | `skript_eval` | Run Skript effect(s) — single (`code`) or batch (`codes` array, local variables persist across the batch). Validates no unquoted newlines before sending. Captures `send`/`broadcast` output directly (Skript only) |
 | `search_skript_syntax` | Query SkriptHub for Skript syntax (no server needed) |
 

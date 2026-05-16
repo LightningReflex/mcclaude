@@ -153,6 +153,28 @@ export async function skriptEval(server: string, code?: string, codes?: string[]
   return rpc(server, { type: "skript_eval", data });
 }
 
+// ── GUI Designer ───────────────────────────────────────────────────
+
+export async function guiOpen(server: string, player: string, invType: string | undefined, rows: number | undefined, title: string, slots?: Record<string, unknown>[]): Promise<ApiResponse> {
+  const data: Record<string, unknown> = { player, title };
+  if (invType) data.type = invType;
+  if (rows !== undefined) data.rows = rows;
+  if (slots) data.slots = slots;
+  return rpc(server, { type: "gui_open", data });
+}
+
+export async function guiRead(server: string, player: string): Promise<ApiResponse> {
+  return rpc(server, { type: "gui_read", data: { player } });
+}
+
+export async function guiSet(server: string, player: string, slots: Record<string, unknown>[]): Promise<ApiResponse> {
+  return rpc(server, { type: "gui_set", data: { player, slots } });
+}
+
+export async function guiClose(server: string, player: string): Promise<ApiResponse> {
+  return rpc(server, { type: "gui_close", data: { player } });
+}
+
 // ── SkriptHub syntax API (local, no MC server needed) ──────────────
 
 interface SkriptSyntax {
