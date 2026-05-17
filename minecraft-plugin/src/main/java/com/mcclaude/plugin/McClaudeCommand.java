@@ -6,10 +6,14 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-public class McClaudeCommand implements CommandExecutor {
+import java.util.ArrayList;
+import java.util.List;
+
+public class McClaudeCommand implements CommandExecutor, TabCompleter {
 
     private final McClaudePlugin plugin;
 
@@ -98,5 +102,21 @@ public class McClaudeCommand implements CommandExecutor {
 
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(Component.text("Usage: /mcclaude <status|reload|gui>", NamedTextColor.YELLOW));
+    }
+
+    private static final List<String> SUBCOMMANDS = List.of("status", "reload", "gui");
+
+    @Override
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
+                                      @NotNull String alias, @NotNull String[] args) {
+        if (args.length == 1) {
+            String prefix = args[0].toLowerCase();
+            List<String> matches = new ArrayList<>();
+            for (String sub : SUBCOMMANDS) {
+                if (sub.startsWith(prefix)) matches.add(sub);
+            }
+            return matches;
+        }
+        return List.of();
     }
 }

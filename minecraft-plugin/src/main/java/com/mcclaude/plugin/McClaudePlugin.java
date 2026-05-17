@@ -44,7 +44,9 @@ public class McClaudePlugin extends JavaPlugin {
         webSocketClient = new WebSocketClient(this);
         webSocketClient.connect();
 
-        getCommand("mcclaude").setExecutor(new McClaudeCommand(this));
+        McClaudeCommand cmd = new McClaudeCommand(this);
+        getCommand("mcclaude").setExecutor(cmd);
+        getCommand("mcclaude").setTabCompleter(cmd);
 
         getLogger().info("McClaude plugin enabled. Connecting to " + serverUrl);
     }

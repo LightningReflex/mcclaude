@@ -117,8 +117,8 @@ public class GuiDesigner implements Listener {
                     return null;
                 }
 
-                // Close existing session if any
-                sessions.remove(player.getUniqueId());
+                // Capture previous session if any (so we don't silently lose it)
+                DesignSession previousSession = sessions.remove(player.getUniqueId());
 
                 Component titleComp = LegacyComponentSerializer.legacyAmpersand().deserialize(title);
                 Inventory inv;
@@ -166,6 +166,18 @@ public class GuiDesigner implements Listener {
                 result.addProperty("rows", actualRows);
                 result.addProperty("size", inv.getSize());
                 result.add("slots", serializeInventory(inv));
+
+                if (previousSession != null) {
+                    result.addProperty("replaced_previous", true);
+                    JsonObject prev = new JsonObject();
+                    prev.addProperty("type", previousSession.type);
+                    prev.addProperty("title", previousSession.title);
+                    prev.addProperty("rows", previousSession.rows);
+                    prev.addProperty("size", previousSession.inventory.getSize());
+                    prev.add("layout", serializeInventory(previousSession.inventory));
+                    result.add("previous_layout", prev);
+                }
+
                 client.sendResult(id, result);
 
             } catch (Exception e) {
