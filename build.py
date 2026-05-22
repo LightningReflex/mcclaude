@@ -18,7 +18,7 @@ DIST_DIR = ROOT / "dist"
 
 MODULES = ["crypto", "config", "api", "drive", "tui"]
 
-HEADER = '''#!/usr/bin/env python3
+HEADER = '''
 """
 McClaude — Let Claude Code develop Minecraft plugins on a live server.
 
