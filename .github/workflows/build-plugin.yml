@@ -1,0 +1,51 @@
+name: Build Minecraft Plugin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "minecraft-plugin/**"
+      - ".github/workflows/build-plugin.yml"
+  pull_request:
+    paths:
+      - "minecraft-plugin/**"
+      - ".github/workflows/build-plugin.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: minecraft-plugin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # The Gradle wrapper jar is gitignored, so install Gradle directly
+      # instead of relying on ./gradlew.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.12"
+          build-root-directory: minecraft-plugin
+
+      - name: Build shaded jar
+        run: gradle --no-daemon shadowJar
+
+      - name: Upload McClaude.jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: McClaude-jar
+          path: minecraft-plugin/build/libs/McClaude.jar
+          if-no-files-found: error
